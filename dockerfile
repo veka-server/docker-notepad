@@ -1,8 +1,7 @@
 # Utiliser l'image officielle PHP avec Apache
-FROM php:8.1-apache
+FROM php:8.3-apache
 
-# Installer l'extension SQLite
-RUN docker-php-ext-install pdo pdo_sqlite
+RUN docker-php-ext-install sqlite
 
 # Activer le module de réécriture Apache (utile pour .htaccess si nécessaire)
 RUN a2enmod rewrite
