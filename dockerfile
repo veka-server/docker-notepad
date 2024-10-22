@@ -1,10 +1,11 @@
 # Utiliser l'image officielle PHP avec Apache
 FROM php:8.3-apache
 
-RUN docker-php-ext-install pdo_sqlite
-
-# Activer le module de réécriture Apache (utile pour .htaccess si nécessaire)
-RUN a2enmod rewrite
+RUN apt-get update && apt-get install -y \
+    libsqlite3-dev \
+    && docker-php-ext-install pdo pdo_sqlite \
+    && a2enmod rewrite \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Copier le contenu du site dans le répertoire par défaut d'Apache
 COPY src/ /var/www/html/
