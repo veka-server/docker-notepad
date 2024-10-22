@@ -264,7 +264,6 @@ try {
         $htmlContent .= '<p><a href="index.php?action=logout">Se déconnecter</a></p>';
     }
 
-    echo $htmlContent;
     ob_end_flush();
 } catch (Exception $e) {
     // Gérer les exceptions et afficher une page d'erreur générique
