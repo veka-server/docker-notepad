@@ -2,15 +2,21 @@
 
 // Configure un gestionnaire d'erreur personnalisé
 set_error_handler(function ($severity, $message, $file, $line) {
+    // Vérifie si ce type d'erreur doit être capturé
     if (!(error_reporting() & $severity)) {
+        // Ce type d'erreur est masqué par le paramètre de error_reporting
         return;
     }
+
+    // Lance une exception
     throw new ErrorException($message, 0, $severity, $file, $line);
 });
 
+// Autre option : transforme les exceptions fatales non capturées en erreurs
 register_shutdown_function(function() {
     $error = error_get_last();
     if ($error !== null && $error['type'] === E_ERROR) {
+        // Transforme l'erreur fatale en exception
         throw new ErrorException($error['message'], 0, $error['type'], $error['file'], $error['line']);
     }
 });
@@ -43,7 +49,9 @@ class Note {
         )');
     }
 
+    // Génération de la clé de chiffrement pour un utilisateur donné
     private function generateEncryptionKey($userId) {
+        // Récupérer les infos de l'utilisateur (mot de passe, id, date de création)
         $stmt = $this->db->prepare('SELECT password, created_at FROM users WHERE id = ?');
         $stmt->execute([$userId]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -52,25 +60,29 @@ class Note {
             throw new Exception("Utilisateur non trouvé.");
         }
 
-        $salt = $user['created_at'] . $userId;
-        $key = hash_pbkdf2("sha256", $user['password'], $salt, 100000, 32);
+        // Combinaison des informations pour générer la clé
+        $salt = $user['created_at'] . $userId; // Utilisation de la date de création et de l'ID comme sel
+        $key = hash_pbkdf2("sha256", $user['password'], $salt, 100000, 32); // Génère une clé de 256 bits
 
         return $key;
     }
 
+    // Fonction pour chiffrer une note
     private function encryptNoteContent($content, $key) {
-        $iv = openssl_random_pseudo_bytes(16);
+        $iv = openssl_random_pseudo_bytes(16); // Génère un IV aléatoire de 16 octets
         $encryptedContent = openssl_encrypt($content, 'aes-256-cbc', $key, 0, $iv);
-        return base64_encode($iv . $encryptedContent);
+        return base64_encode($iv . $encryptedContent); // Stocke IV + contenu chiffré
     }
 
+    // Fonction pour déchiffrer une note
     private function decryptNoteContent($encryptedContent, $key) {
         $encryptedContent = base64_decode($encryptedContent);
-        $iv = substr($encryptedContent, 0, 16);
+        $iv = substr($encryptedContent, 0, 16); // Séparer l'IV du contenu chiffré
         $ciphertext = substr($encryptedContent, 16);
         return openssl_decrypt($ciphertext, 'aes-256-cbc', $key, 0, $iv);
     }
 
+    // Ajouter une note (avec chiffrement)
     public function addNote($title, $content, $userId) {
         $key = $this->generateEncryptionKey($userId);
         $encryptedContent = $this->encryptNoteContent($content, $key);
@@ -79,6 +91,7 @@ class Note {
         return $stmt->execute([$title, $encryptedContent, $userId]);
     }
 
+    // Mettre à jour une note (avec chiffrement)
     public function updateNote($id, $title, $content, $userId) {
         $key = $this->generateEncryptionKey($userId);
         $encryptedContent = $this->encryptNoteContent($content, $key);
@@ -87,6 +100,7 @@ class Note {
         return $stmt->execute([$title, $encryptedContent, $id, $userId]);
     }
 
+    // Récupérer toutes les notes d'un utilisateur (avec déchiffrement)
     public function getAllNotesByUser($userId) {
         $key = $this->generateEncryptionKey($userId);
 
@@ -94,6 +108,7 @@ class Note {
         $stmt->execute([$userId]);
         $notes = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+        // Déchiffrement des notes
         foreach ($notes as &$note) {
             $note['content'] = $this->decryptNoteContent($note['content'], $key);
         }
@@ -101,6 +116,7 @@ class Note {
         return $notes;
     }
 
+    // Récupérer une note spécifique (avec déchiffrement)
     public function getNoteById($id, $userId) {
         $key = $this->generateEncryptionKey($userId);
 
@@ -115,17 +131,20 @@ class Note {
         return $note;
     }
 
+    // Suppression de note (pas de changement pour cette partie)
     public function deleteNoteById($id, $userId) {
         $stmt = $this->db->prepare('DELETE FROM notes WHERE id = ? AND user_id = ?');
         return $stmt->execute([$id, $userId]);
     }
 
+    // Inscription d'un utilisateur
     public function registerUser($username, $password) {
         $hashedPassword = password_hash($password, PASSWORD_BCRYPT);
         $stmt = $this->db->prepare('INSERT INTO users (username, password, created_at) VALUES (?, ?, datetime("now"))');
         return $stmt->execute([$username, $hashedPassword]);
     }
 
+    // Connexion utilisateur (inchangé)
     public function loginUser($username, $password) {
         $stmt = $this->db->prepare('SELECT * FROM users WHERE username = ?');
         $stmt->execute([$username]);
@@ -138,13 +157,15 @@ class Note {
     }
 }
 
+
 session_start();
 $note = new Note();
 $action = isset($_GET['action']) ? $_GET['action'] : 'list';
-$htmlContent = '';
+$htmlContent = ''; // Variable to hold HTML content
 $message = '';
 
 try {
+    // Connexion utilisateur
     if ($action === 'login' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $user = $note->loginUser($_POST['username'], $_POST['password']);
         if ($user) {
@@ -156,33 +177,34 @@ try {
         }
     }
 
+    // Inscription utilisateur
     if ($action === 'register' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $note->registerUser($_POST['username'], $_POST['password']);
-        $message = '<p style="color:green;">Compte créé avec succès !</p>';
         header('Location: index.php?action=login');
         exit;
     }
 
+    // Déconnexion utilisateur
     if ($action === 'logout') {
         session_destroy();
         header('Location: index.php?action=login');
         exit;
     }
 
+    // Gestion de la session utilisateur
     if (!isset($_SESSION['user_id']) && !in_array($action, ['login', 'register'])) {
         header('Location: index.php?action=login');
         exit;
     }
 
+    // Traitement des actions (Ajout, Édition, Suppression, Liste)
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($action === 'add') {
             $note->addNote($_POST['title'], $_POST['content'], $_SESSION['user_id']);
-            $message = '<p style="color:green;">Note ajoutée avec succès !</p>';
             header('Location: index.php');
             exit;
         } elseif ($action === 'edit' && isset($_GET['id'])) {
             $note->updateNote($_GET['id'], $_POST['title'], $_POST['content'], $_SESSION['user_id']);
-            $message = '<p style="color:green;">Note mise à jour avec succès !</p>';
             header('Location: index.php');
             exit;
         }
@@ -190,15 +212,21 @@ try {
 
     if ($action === 'delete' && isset($_GET['id'])) {
         $note->deleteNoteById($_GET['id'], $_SESSION['user_id']);
-        $message = '<p style="color:green;">Note supprimée avec succès !</p>';
         header('Location: index.php');
         exit;
     }
 
-    ob_start();
+    // Si aucune action valide n'est trouvée
+    if (!in_array($action, ['list', 'add', 'edit', 'delete', 'login', 'register'])) {
+        throw new Exception('Action inconnue');
+    }
 
+    ob_start(); // Start output buffering
+
+    $htmlContent = $message;
+
+    // Generate HTML content
     if (!isset($_SESSION['user_id']) && $action === 'login') {
-        $htmlContent .= $message;
         $htmlContent .= '<h1>Connexion</h1>';
         $htmlContent .= '<form method="post">';
         $htmlContent .= '<label>Nom d\'utilisateur:</label>';
@@ -208,8 +236,8 @@ try {
         $htmlContent .= '<button type="submit">Se connecter</button>';
         $htmlContent .= '</form>';
         $htmlContent .= '<p>Pas de compte ? <a href="index.php?action=register">S\'inscrire</a></p>';
+
     } elseif (!isset($_SESSION['user_id']) && $action === 'register') {
-        $htmlContent .= $message;
         $htmlContent .= '<h1>Inscription</h1>';
         $htmlContent .= '<form method="post">';
         $htmlContent .= '<label>Nom d\'utilisateur:</label>';
@@ -219,59 +247,64 @@ try {
         $htmlContent .= '<button type="submit">S\'inscrire</button>';
         $htmlContent .= '</form>';
         $htmlContent .= '<p>Déjà un compte ? <a href="index.php?action=login">Se connecter</a></p>';
-    } elseif ($action === 'add') {
-        $htmlContent .= '<h1>Ajouter une nouvelle note</h1>';
-        $htmlContent .= '<form method="post">';
-        $htmlContent .= '<label>Titre:</label>';
-        $htmlContent .= '<input type="text" name="title" required>';
-        $htmlContent .= '<label>Contenu:</label>';
-        $htmlContent .= '<textarea name="content" required></textarea>';
-        $htmlContent .= '<button type="submit">Ajouter</button>';
-        $htmlContent .= '</form>';
-        $htmlContent .= '<a href="index.php" style="color: blue; text-decoration: underline; font-weight: bold;">Retour à la liste des notes</a>';
-    } elseif ($action === 'edit' && isset($_GET['id'])) {
-        $noteToEdit = $note->getNoteById($_GET['id'], $_SESSION['user_id']);
-        if ($noteToEdit) {
-            $htmlContent .= '<h1>Modifier la note</h1>';
+
+    } elseif (isset($_SESSION['user_id'])) {
+        if ($action === 'list') {
+            $htmlContent .= '<h1>Liste des Blocs-Notes</h1>';
+            $htmlContent .= '<a href="?action=add">Ajouter un Bloc-Note</a> <a href="?action=logout">Se déconnecter</a>';
+            $htmlContent .= '<ul>';
+            foreach ($note->getAllNotesByUser($_SESSION['user_id']) as $n) {
+                $htmlContent .= '<li>';
+                $htmlContent .= '<div class="note-header">';
+                $htmlContent .= '<strong>' . htmlspecialchars($n['title']) . '</strong>';
+                $htmlContent .= '<a href="?action=edit&id=' . $n['id'] . '">Modifier</a>';
+                $htmlContent .= '<a href="?action=delete&id=' . $n['id'] . '" onclick="return confirm(\'Êtes-vous sûr de vouloir supprimer ce bloc-note ?\')">Supprimer</a>';
+                $htmlContent .= '</div>';
+                $htmlContent .= 'Créé le: ' . $n['created_at'] . '<br>';
+                $htmlContent .= 'Dernière édition: ' . $n['updated_at'] . '<br>';
+                $htmlContent .= 'Taille: ' . strlen($n['content']) . ' octets';
+                $htmlContent .= '</li>';
+            }
+            $htmlContent .= '</ul>';
+
+        } elseif ($action === 'add') {
+            $htmlContent .= '<h1>Ajouter un Bloc-Note</h1>';
             $htmlContent .= '<form method="post">';
             $htmlContent .= '<label>Titre:</label>';
-            $htmlContent .= '<input type="text" name="title" value="' . htmlspecialchars($noteToEdit['title']) . '" required>';
+            $htmlContent .= '<input type="text" name="title" required>';
             $htmlContent .= '<label>Contenu:</label>';
-            $htmlContent .= '<textarea name="content" required>' . htmlspecialchars($noteToEdit['content']) . '</textarea>';
-            $htmlContent .= '<button type="submit">Mettre à jour</button>';
+            $htmlContent .= '<textarea name="content" rows="8" required></textarea>';
+            $htmlContent .= '<button type="submit">Ajouter</button>';
             $htmlContent .= '</form>';
-            $htmlContent .= '<a href="index.php" style="color: blue; text-decoration: underline; font-weight: bold;">Retour à la liste des notes</a>';
-        } else {
-            $htmlContent .= '<p>Note non trouvée.</p>';
+            $htmlContent .= '<a href="index.php">Retour à la liste</a>';
+
+        } elseif ($action === 'edit' && isset($_GET['id'])) {
+            $noteData = $note->getNoteById($_GET['id'], $_SESSION['user_id']);
+            $title = htmlspecialchars($noteData['title']);
+            $content = htmlspecialchars($noteData['content']);
+
+            $htmlContent .= '<h1>Modifier le Bloc-Note</h1>';
+            $htmlContent .= '<form method="post">';
+            $htmlContent .= '<label>Titre:</label>';
+            $htmlContent .= '<input type="text" name="title" value="' . $title . '" required>';
+            $htmlContent .= '<label>Contenu:</label>';
+            $htmlContent .= '<textarea name="content" rows="8" required>' . $content . '</textarea>';
+            $htmlContent .= '<button type="submit">Modifier</button>';
+            $htmlContent .= '</form>';
+            $htmlContent .= '<a href="index.php">Retour à la liste</a>';
         }
-    } else {
-        $htmlContent .= '<h1>Liste des notes</h1>';
-        $notes = $note->getAllNotesByUser($_SESSION['user_id']);
-        if ($notes) {
-            foreach ($notes as $noteItem) {
-                $htmlContent .= '<div>';
-                $htmlContent .= '<h2>' . htmlspecialchars($noteItem['title']) . '</h2>';
-                $htmlContent .= '<p>' . htmlspecialchars($noteItem['content']) . '</p>';
-                $htmlContent .= '<a href="index.php?action=edit&id=' . $noteItem['id'] . '">Modifier</a>';
-                $htmlContent .= ' | ';
-                $htmlContent .= '<a href="index.php?action=delete&id=' . $noteItem['id'] . '" onclick="return confirm(\'Êtes-vous sûr de vouloir supprimer cette note ?\')">Supprimer</a>';
-                $htmlContent .= '</div>';
-            }
-        } else {
-            $htmlContent .= '<p>Aucune note disponible.</p>';
-        }
-        $htmlContent .= '<a href="index.php?action=add" style="color: blue; text-decoration: underline; font-weight: bold;">Ajouter une nouvelle note</a>';
-        $htmlContent .= '<p><a href="index.php?action=logout">Se déconnecter</a></p>';
     }
 
-    ob_end_flush();
+    $htmlContent .= ob_get_clean(); // Store output buffer in the variable
 } catch (Exception $e) {
     // Gérer les exceptions et afficher une page d'erreur générique
     $htmlContent = '<h1>Une erreur est survenue</h1>';
     $htmlContent .= '<p>Nous rencontrons un problème technique. Veuillez réessayer plus tard.</p>';
     $htmlContent .= '<a href="index.php">Retour à la page d\'accueil</a>';
 }
+
 ?>
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
