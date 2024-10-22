@@ -14,6 +14,8 @@ COPY src/ /var/www/html/
 RUN chown -R www-data:www-data /var/www/html \
     && chmod -R 755 /var/www/html
 
+USER www-data
+
 # Exposer le port 80 pour accéder à l'application
 EXPOSE 80
 
