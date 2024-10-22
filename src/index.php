@@ -267,6 +267,164 @@ try {
     echo $htmlContent;
     ob_end_flush();
 } catch (Exception $e) {
-    echo '<p style="color:red;">Erreur: ' . htmlspecialchars($e->getMessage()) . '</p>';
+    // Gérer les exceptions et afficher une page d'erreur générique
+    $htmlContent = '<h1>Une erreur est survenue</h1>';
+    $htmlContent .= '<p>Nous rencontrons un problème technique. Veuillez réessayer plus tard.</p>';
+    $htmlContent .= '<a href="index.php">Retour à la page d\'accueil</a>';
 }
 ?>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestion de Bloc-Notes</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #fff;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border-radius: 5px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            margin: 10px 0 5px;
+            color: #333;
+        }
+
+        input[type="text"],
+        input[type="password"],
+        textarea {
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            width: 100%;
+        }
+
+        button {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            border-radius: 4px;
+        }
+
+        button:hover {
+            background-color: #218838;
+        }
+
+        a {
+            color: #007bff;
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        li {
+            background-color: #f9f9f9;
+            margin: 10px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        .note-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .note-header a {
+            margin-left: 15px;
+            padding: 6px 12px;
+            border-radius: 4px;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: bold;
+            color: white;
+        }
+
+        .note-header a[href*="edit"] {
+            background-color: #ffc107;
+        }
+
+        .note-header a[href*="edit"]:hover {
+            background-color: #e0a800;
+        }
+
+        .note-header a[href*="delete"] {
+            background-color: #dc3545;
+        }
+
+        .note-header a[href*="delete"]:hover {
+            background-color: #c82333;
+        }
+
+        a[href*="logout"] {
+            display: inline-block;
+            background-color: #17a2b8;
+            color: white;
+            padding: 10px 15px;
+            margin-top: 15px;
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        a[href*="logout"]:hover {
+            background-color: #138496;
+        }
+
+        a[href*="add"] {
+            display: inline-block;
+            background-color: #28a745;
+            color: white;
+            padding: 10px 15px;
+            margin-top: 15px;
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        a[href*="add"]:hover {
+            background-color: #218838;
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <?php echo $htmlContent; // Display the generated HTML content ?>
+</div>
+
+</body>
+</html>
