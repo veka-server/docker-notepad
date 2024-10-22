@@ -17,5 +17,7 @@ RUN chown -R www-data:www-data /var/www/html \
 # Exposer le port 80 pour accéder à l'application
 EXPOSE 80
 
+VOLUME /var/www/html/db
+
 # Lancer Apache en mode "foreground"
 CMD ["apache2-foreground"]
