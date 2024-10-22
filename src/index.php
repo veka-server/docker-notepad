@@ -157,11 +157,13 @@ class Note {
     }
 }
 
+<?php
 
 session_start();
 $note = new Note();
 $action = isset($_GET['action']) ? $_GET['action'] : 'list';
 $htmlContent = ''; // Variable to hold HTML content
+$message = ''; // Variable to hold success/error messages
 
 try {
     // Connexion utilisateur
@@ -171,14 +173,20 @@ try {
             $_SESSION['user_id'] = $user['id'];
             header('Location: index.php');
             exit;
+        } else {
+            $message = '<p style="color:red;">Nom d\'utilisateur ou mot de passe incorrect.</p>';
         }
     }
 
     // Inscription utilisateur
     if ($action === 'register' && $_SERVER['REQUEST_METHOD'] === 'POST') {
-        $note->registerUser($_POST['username'], $_POST['password']);
-        header('Location: index.php?action=login');
-        exit;
+        if ($note->registerUser($_POST['username'], $_POST['password'])) {
+            $message = '<p style="color:green;">Compte créé avec succès. Vous pouvez maintenant vous connecter.</p>';
+            header('Location: index.php?action=login');
+            exit;
+        } else {
+            $message = '<p style="color:red;">Erreur lors de la création du compte. Veuillez réessayer.</p>';
+        }
     }
 
     // Déconnexion utilisateur
@@ -198,24 +206,37 @@ try {
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($action === 'add') {
             $note->addNote($_POST['title'], $_POST['content'], $_SESSION['user_id']);
-            header('Location: index.php');
+            $message = '<p style="color:green;">Note ajoutée avec succès.</p>';
+            header('Location: index.php?message=add_success');
             exit;
         } elseif ($action === 'edit' && isset($_GET['id'])) {
             $note->updateNote($_GET['id'], $_POST['title'], $_POST['content'], $_SESSION['user_id']);
-            header('Location: index.php');
+            $message = '<p style="color:green;">Note modifiée avec succès.</p>';
+            header('Location: index.php?message=edit_success');
             exit;
         }
     }
 
     if ($action === 'delete' && isset($_GET['id'])) {
         $note->deleteNoteById($_GET['id'], $_SESSION['user_id']);
-        header('Location: index.php');
+        $message = '<p style="color:green;">Note supprimée avec succès.</p>';
+        header('Location: index.php?message=delete_success');
         exit;
     }
 
-    // Si aucune action valide n'est trouvée
-    if (!in_array($action, ['list', 'add', 'edit', 'delete', 'login', 'register'])) {
-        throw new Exception('Action inconnue');
+    // Si une action réussit, afficher un message spécifique
+    if (isset($_GET['message'])) {
+        switch ($_GET['message']) {
+            case 'add_success':
+                $message = '<p style="color:green;">Note ajoutée avec succès.</p>';
+                break;
+            case 'edit_success':
+                $message = '<p style="color:green;">Note modifiée avec succès.</p>';
+                break;
+            case 'delete_success':
+                $message = '<p style="color:green;">Note supprimée avec succès.</p>';
+                break;
+        }
     }
 
     ob_start(); // Start output buffering
@@ -223,6 +244,7 @@ try {
     // Generate HTML content
     if (!isset($_SESSION['user_id']) && $action === 'login') {
         $htmlContent .= '<h1>Connexion</h1>';
+        $htmlContent .= $message;
         $htmlContent .= '<form method="post">';
         $htmlContent .= '<label>Nom d\'utilisateur:</label>';
         $htmlContent .= '<input type="text" name="username" required>';
@@ -234,6 +256,7 @@ try {
 
     } elseif (!isset($_SESSION['user_id']) && $action === 'register') {
         $htmlContent .= '<h1>Inscription</h1>';
+        $htmlContent .= $message;
         $htmlContent .= '<form method="post">';
         $htmlContent .= '<label>Nom d\'utilisateur:</label>';
         $htmlContent .= '<input type="text" name="username" required>';
@@ -244,16 +267,17 @@ try {
         $htmlContent .= '<p>Déjà un compte ? <a href="index.php?action=login">Se connecter</a></p>';
 
     } elseif (isset($_SESSION['user_id'])) {
+        $htmlContent .= $message;
         if ($action === 'list') {
             $htmlContent .= '<h1>Liste des Blocs-Notes</h1>';
-            $htmlContent .= '<a href="?action=add">Ajouter un Bloc-Note</a> <a href="?action=logout">Se déconnecter</a>';
+            $htmlContent .= '<a href="?action=add" class="btn">Ajouter un Bloc-Note</a> <a href="?action=logout" class="btn logout">Se déconnecter</a>';
             $htmlContent .= '<ul>';
             foreach ($note->getAllNotesByUser($_SESSION['user_id']) as $n) {
                 $htmlContent .= '<li>';
                 $htmlContent .= '<div class="note-header">';
                 $htmlContent .= '<strong>' . htmlspecialchars($n['title']) . '</strong>';
-                $htmlContent .= '<a href="?action=edit&id=' . $n['id'] . '">Modifier</a>';
-                $htmlContent .= '<a href="?action=delete&id=' . $n['id'] . '" onclick="return confirm(\'Êtes-vous sûr de vouloir supprimer ce bloc-note ?\')">Supprimer</a>';
+                $htmlContent .= '<a href="?action=edit&id=' . $n['id'] . '" class="btn edit">Modifier</a>';
+                $htmlContent .= '<a href="?action=delete&id=' . $n['id'] . '" class="btn delete" onclick="return confirm(\'Êtes-vous sûr de vouloir supprimer ce bloc-note ?\')">Supprimer</a>';
                 $htmlContent .= '</div>';
                 $htmlContent .= 'Créé le: ' . $n['created_at'] . '<br>';
                 $htmlContent .= 'Dernière édition: ' . $n['updated_at'] . '<br>';
@@ -271,7 +295,7 @@ try {
             $htmlContent .= '<textarea name="content" rows="8" required></textarea>';
             $htmlContent .= '<button type="submit">Ajouter</button>';
             $htmlContent .= '</form>';
-            $htmlContent .= '<a href="index.php">Retour à la liste</a>';
+            $htmlContent .= '<a href="index.php" class="btn return">Retour à la liste</a>';
 
         } elseif ($action === 'edit' && isset($_GET['id'])) {
             $noteData = $note->getNoteById($_GET['id'], $_SESSION['user_id']);
@@ -286,7 +310,7 @@ try {
             $htmlContent .= '<textarea name="content" rows="8" required>' . $content . '</textarea>';
             $htmlContent .= '<button type="submit">Modifier</button>';
             $htmlContent .= '</form>';
-            $htmlContent .= '<a href="index.php">Retour à la liste</a>';
+            $htmlContent .= '<a href="index.php" class="btn return">Retour à la liste</a>';
         }
     }
 
@@ -298,6 +322,8 @@ try {
     $htmlContent .= '<a href="index.php">Retour à la page d\'accueil</a>';
 }
 
+// Affichage du contenu
+echo $htmlContent;
 ?>
 
 <!DOCTYPE html>
