@@ -24,7 +24,7 @@ register_shutdown_function(function() {
 class Note {
     private $db;
 
-    public function __construct($dbPath = 'database.sqlite') {
+    public function __construct($dbPath = 'db/database.sqlite') {
         $this->db = new PDO('sqlite:' . $dbPath);
         $this->db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         $this->createTables();
