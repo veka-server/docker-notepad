@@ -157,8 +157,6 @@ class Note {
     }
 }
 
-<?php
-
 session_start();
 $note = new Note();
 $action = isset($_GET['action']) ? $_GET['action'] : 'list';
